@@ -1,0 +1,561 @@
+{
+  "name": "My workflow 7_final",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2304,
+        320
+      ],
+      "id": "096ac457-28de-4db3-bb5d-1d2eea7f1e28",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "forMine",
+              "value": "true"
+            },
+            {
+              "name": "type",
+              "value": "video"
+            },
+            {
+              "name": "maxResults",
+              "value": "50"
+            },
+            {
+              "name": "order",
+              "value": "date"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2064,
+        384
+      ],
+      "id": "5e93d776-c5c1-4741-babc-6789d77d0525",
+      "name": "HTTP Request",
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "48w9P6IyZNkzPM20",
+          "name": "Google account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1424,
+        512
+      ],
+      "id": "48be8d80-7837-4936-835e-6843f72e85d3",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0a8d3b96-5cee-4e0f-9cc1-f0f5a5052d0c",
+              "leftValue": "={{ Object.keys($input.first().json).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1072,
+        96
+      ],
+      "id": "e541715a-8057-43ac-b9c6-395ef8e79a8c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "youtube_knowledge_base",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "=video_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.video_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        256
+      ],
+      "id": "599eef85-2f49-4401-ada4-e925d5364095",
+      "name": "Get many rows",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "qQDl1ECmZZOcyUSI",
+          "name": "actualsupabasepostmemo"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,contentDetails,statistics"
+            },
+            {
+              "name": "id",
+              "value": "={{ $('Code in JavaScript1').item.json.video_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -672,
+        288
+      ],
+      "id": "a8f2a63f-1258-4814-8efd-ac5a138c070b",
+      "name": "HTTP Request1",
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "48w9P6IyZNkzPM20",
+          "name": "Google account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst videoId = $('Code in JavaScript1').item.json.video_id;\n\nif (!item.items || item.items.length === 0) {\n  return [];\n}\n\nconst snippet = item.items[0].snippet;\nconst stats = item.items[0].statistics;\nconst details = item.items[0].contentDetails;\n\n// Get transcript - try different possible response fields\nlet transcriptRaw = '';\ntry {\n  const transcriptResponse = $('Get Transcript').item.json;\n  transcriptRaw = transcriptResponse?.body || \n                  transcriptResponse?.text || \n                  transcriptResponse?.data || \n                  JSON.stringify(transcriptResponse) || '';\n} catch(e) {\n  transcriptRaw = '';\n}\n\n// Clean XML tags from transcript\nconst transcriptText = transcriptRaw\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&#39;/g, \"'\")\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .substring(0, 8000); // limit size\n\nconst content = `\nVideo Title: ${snippet.title}\n\nDescription: ${snippet.description || 'No description'}\n\nTags: ${snippet.tags ? snippet.tags.join(', ') : 'No tags'}\n\nDuration: ${details.duration || 'Unknown'}\n\nViews: ${stats.viewCount || '0'}\n\nLikes: ${stats.likeCount || '0'}\n\nPublished: ${snippet.publishedAt}\n\nChannel: ${snippet.channelTitle}\n\nTranscript: ${transcriptText || 'Transcript not available'}\n`;\n\nreturn [{\n  json: {\n    video_id: videoId,\n    title: snippet.title,\n    content: content\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        384
+      ],
+      "id": "e99e84c5-8843-45ae-a532-d1c1163ac8ef",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "tableId": "youtube_knowledge_base",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "=video_id",
+              "fieldValue": "={{ $json.video_id }}"
+            },
+            {
+              "fieldId": "=title",
+              "fieldValue": "={{ $json.title }}"
+            },
+            {
+              "fieldId": "=content",
+              "fieldValue": "={{ $json.content }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bee9b89f-10f3-43c2-b223-fc6a830ce8f1",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "qQDl1ECmZZOcyUSI",
+          "name": "actualsupabasepostmemo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "youtube_knowledge_base",
+          "mode": "list",
+          "cachedResultName": "youtube_knowledge_base"
+        },
+        "options": {
+          "queryName": "=match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -496,
+        1136
+      ],
+      "id": "169c5e81-4f74-4e2f-952c-d4288354bc9d",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "qQDl1ECmZZOcyUSI",
+          "name": "actualsupabasepostmemo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1008,
+        1200
+      ],
+      "id": "2d894e0c-b074-4316-bfeb-20ae458828a6",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "pIcQcuyfC046Bb1Q",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.content }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "video_id",
+                "value": "={{ $json.video_id }}"
+              },
+              {
+                "name": "title  ",
+                "value": "={{ $json.title }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        320,
+        1344
+      ],
+      "id": "48415393-b9ca-428b-97f0-2e8c2f026156",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1024,
+        800
+      ],
+      "id": "a98984d2-8c85-4798-b3a4-96dc3b00be64",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=items",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -2192,
+        704
+      ],
+      "id": "6f88a504-eb52-446f-87ff-8235dad4193a",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst item = $input.item.json;\n\nreturn [{\n  json: {\n    video_id: item.id?.videoId || null,\n    title: item.snippet?.title || null,\n    description: item.snippet?.description || null\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1520,
+        48
+      ],
+      "id": "5bc1b272-80c8-41b6-9f13-460fd74ed1ad",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const videoId = item.json.id?.videoId;\n  const title = item.json.snippet?.title;\n  const description = item.json.snippet?.description || '';\n  const channelTitle = item.json.snippet?.channelTitle;\n  const publishedAt = item.json.snippet?.publishedAt;\n\n  const content = `\nVideo Title: ${title}\nDescription: ${description}\nChannel: ${channelTitle}\nPublished: ${publishedAt}\nVideo ID: ${videoId}\n  `;\n\n  results.push({\n    json: {\n      video_id: videoId,\n      title: title,\n      content: content\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1984,
+        704
+      ],
+      "id": "67beb1b7-c62e-4526-b311-6acbfef31811",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "url": "=https://youtubetranscript.com/?server_vid2={{ $('Code in JavaScript1').item.json.video_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -464,
+        288
+      ],
+      "id": "a46c284f-cbb8-4344-be24-db477efc767b",
+      "name": "get transcript",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "get transcript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get transcript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "26541bdf-7d57-450d-bb83-2fb288687907",
+  "meta": {
+    "instanceId": "a430ef29d73cfaf96c4b7e4e4bf35b0d632f35ccc921cd1e495d62c8f8dd81b6"
+  },
+  "id": "wBhyVQkGIvGebs1Sl3JaL",
+  "tags": []
+}
