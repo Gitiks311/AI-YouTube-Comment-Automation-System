@@ -1,0 +1,528 @@
+{
+  "name": "final_replier_10",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        144
+      ],
+      "id": "4408a786-4632-4b3c-ba94-0555681abc0a",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=A comment has been posted on my YouTube video \nComment: {{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.snippet.textDisplay }}\nPosted by: {{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.snippet.authorDisplayName }}\nVideo ID: {{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.snippet.videoId }}\n\nWrite a natural reply on my behalf:\n- If it is a question, answer it helpfully\n- If it is a compliment, thank them warmly\n- If it is something else, give a friendly response\n- Maximum 2 to 3 sentences\n- Reply in the same language the comment was written in\n- Sound natural and genuine, not like a bot",
+        "options": {
+          "systemMessage": "=You are the owner of a YouTube channel. You reply to comments yourself — never reveal you are an AI.\n\nYOUR DATABASES:\n1. \"search_video_transcripts\" tool → searches video_transcripts table (has full transcript of each video matched by video_id)\n2. \"search_youtube_knowledge_base\" tool → searches youtube_knowledge table (has title, description, metadata of each video matched by video_id)\n\nMANDATORY STEPS — DO NOT SKIP:\nStep 1: Call \"search_youtube_knowledge_base\" with input: \"{video_id} {comment_text}\"\nStep 2: Call \"search_video_transcripts\" with input: \"{video_id} {comment_text}\"\nStep 3: ONLY then compose your reply\n\nIMPORTANT — video_id MATCHING:\n- Every comment comes with a video_id\n- ALWAYS filter your search using that exact video_id\n- NEVER use transcript or knowledge from a different video_id\n- If video_id is \"x_fomK1ezdI\" → only use data where video_id = \"x_fomK1ezdI\"\n\nREPLY RULES:\n- 2-3 sentences max\n- Solve doubts DIRECTLY in the reply — never say \"ask in comments\" or \"comment below\"\n- If someone asks a doubt → use the transcript to answer it right there\n- Hindi/Hinglish comment → reply in Hinglish\n- English comment → reply in English\n- Match the energy of the comment\n- Add emojis occasionally\n- NEVER say \"check the description\" unless tool confirmed it\n- NEVER mention AI, bot, or agent\n- NEVER sound robotic or corporate\n\nCHANNEL TOPICS:\nFood, Mathematics, Gaming, Famous Places, IIT Jodhpur, Rubik's cube, Short reels\n\nIF TOOLS RETURN NOTHING:\n- Give a warm, natural generic reply\n- Still base it on the video title if available\n- Never make up facts or links\n\nSTRICT DON'TS:\n- Never mention resources/links you cannot confirm from tools\n- Never say \"great question!\" generically\n- Never make commenter feel their doubt was unanswered\n- Never reply as if you are an agent or assistant.\n-never say i will exlain more just end the conversation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        560,
+        -96
+      ],
+      "id": "d961df31-3633-409e-baf0-0c8bc0052d8c",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Search through YouTube video content and transcripts to find relevant videos when answering comments",
+        "tableName": {
+          "__rl": true,
+          "value": "youtube_knowledge_base",
+          "mode": "list",
+          "cachedResultName": "youtube_knowledge_base"
+        },
+        "topK": 3,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        704,
+        320
+      ],
+      "id": "31b76a01-0ff2-4d58-87a6-606965a702b9",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "qQDl1ECmZZOcyUSI",
+          "name": "actualsupabasepostmemo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        352,
+        304
+      ],
+      "id": "3ea565b6-09f2-4c75-a8a1-1f7c4a50be9c",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "pIcQcuyfC046Bb1Q",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/commentThreads",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,replies"
+            },
+            {
+              "name": "allThreadsRelatedToChannelId",
+              "value": "UCcePCogZ8saxrb_0mghGnPg"
+            },
+            {
+              "name": "maxResults",
+              "value": "2"
+            },
+            {
+              "name": "order",
+              "value": "time"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -624,
+        -128
+      ],
+      "id": "338636ec-cd67-47be-bae3-0930166071b1",
+      "name": "HTTP Request",
+      "credentials": {
+        "gongOAuth2Api": {
+          "id": "UN2btVdaI86ChU87",
+          "name": "Gong account"
+        },
+        "googleOAuth2Api": {
+          "id": "48w9P6IyZNkzPM20",
+          "name": "Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0f13c02f-ed5d-4a41-8874-0bdbd5739f41",
+              "leftValue": "={{ $json.output[0].content[0].text }}",
+              "rightValue": "meaningful",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "eed0c8db-3e0b-45e5-bdef-e78c66f0f116",
+              "leftValue": "={{ $('Classify text for violations').item.json.flagged }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        256,
+        -80
+      ],
+      "id": "9d8c7daf-7760-41bf-b4be-dbfe3a8db8a2",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Is this YouTube comment ONLY spam, pure gibberish, or ONLY emojis with zero meaning?\nReply with ONLY one word: \"skip\" or \"meaningful\".\n\nImportant:\n- Any real question = meaningful\n- Any genuine feedback = meaningful  \n- Any normal sentence = meaningful\n- Only pure spam/gibberish/emojis = skip\n\nComment: {{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.snippet.textDisplay }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        208
+      ],
+      "id": "f9e15df2-3c79-4dc6-9828-8a66b6e4a29c",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "pIcQcuyfC046Bb1Q",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        304,
+        64
+      ],
+      "id": "2007a9cd-6435-4fbd-bfc4-5c103348abf1",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-ada-002",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        528
+      ],
+      "id": "bbfd0d28-30c0-410d-8947-f883449c1440",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "pIcQcuyfC046Bb1Q",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "youtube_comment_memory",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "commenter_name",
+              "fieldValue": "={{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.snippet.authorDisplayName }}"
+            },
+            {
+              "fieldId": "commenter_id",
+              "fieldValue": "={{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.snippet.authorChannelId.value }}"
+            },
+            {
+              "fieldId": "comment_text",
+              "fieldValue": "={{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.snippet.textDisplay }}"
+            },
+            {
+              "fieldId": "reply_text",
+              "fieldValue": "={{ $('AI Agent').item.json.output }}"
+            },
+            {
+              "fieldId": "video_id",
+              "fieldValue": "={{ $('HTTP Request').item.json.items[0].snippet.videoId }}"
+            },
+            {
+              "fieldId": "comment_id",
+              "fieldValue": "={{ $('HTTP Request').item.json.items[0].snippet.topLevelComment.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        912,
+        -96
+      ],
+      "id": "d06428d3-cb71-44f0-8a71-39607d2ec0fe",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "qQDl1ECmZZOcyUSI",
+          "name": "actualsupabasepostmemo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/youtube/v3/comments?part=snippet",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"snippet\": {\n    \"parentId\": \"{{ $json.comment_id }}\",\n    \"textOriginal\": {{ JSON.stringify($json.reply_text) }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        -96
+      ],
+      "id": "2ebebc66-9174-45ad-8c1f-c2e7a46ebdc0",
+      "name": "HTTP Request1",
+      "credentials": {
+        "googleOAuth2Api": {
+          "id": "48w9P6IyZNkzPM20",
+          "name": "Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "classify"
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -176,
+        240
+      ],
+      "id": "0ea56123-df37-401e-bab0-5efa9457a43d",
+      "name": "Classify text for violations",
+      "credentials": {
+        "openAiApi": {
+          "id": "pIcQcuyfC046Bb1Q",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0df0c1be-b312-4c10-9910-40d37ec18ac0",
+              "leftValue": "={{ ($json.items[0].replies?.comments ?? []).filter(r => r.snippet.channelId === \"UCcePCogZ8saxrb_0mghGnPg\").length === 0 }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -368,
+        -96
+      ],
+      "id": "2dbd49be-ef2b-442e-9474-a73086573bbe",
+      "name": "If1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -80
+      ],
+      "id": "fc506c3f-8543-4f95-8a2a-bfcb07631a9e",
+      "name": "No Operation, do nothing1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify text for violations": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Classify text for violations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "92da183f-be99-4e3e-a2b7-869db3c74491",
+  "meta": {
+    "instanceId": "a430ef29d73cfaf96c4b7e4e4bf35b0d632f35ccc921cd1e495d62c8f8dd81b6"
+  },
+  "id": "eTaxBOx5XIkYy8sI_9yMl",
+  "tags": []
+}
